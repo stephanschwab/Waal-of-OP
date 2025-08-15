@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Wall of OP — Simple GitHub JSON</title>
+  <style>
+    body{font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:760px;margin:24px auto;padding:0 16px;background:#fafafa;color:#111}
+    h1{font-size:22px;margin:0 0 12px}
+    .box{background:#fff;border:1px solid #e8e8e8;border-radius:10px;padding:14px;margin:12px 0}
+    label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}
+    input,textarea{width:100%;padding:10px;border:1px solid #e1e1e1;border-radius:8px;font-size:14px}
+    textarea{min-height:100px;resize:vertical}
+    button{appearance:none;border:1px solid #ddd;background:#fff;border-radius:8px;padding:10px 14px;font-weight:700;cursor:pointer}
+    button.primary{background:#ff0420;color:#fff;border-color:#ff0420}
+    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .muted{color:#666;font-size:12px}
+    .item{border:1px dashed #e6e6e6;border-radius:8px;padding:10px;margin:8px 0;background:#fff}
+    .mono{font-family:ui-monospace,Menlo,Consolas,monospace}
+  </style>
+</head>
+<body>
+  <h1>🧱 Wall of OP — Simple GitHub JSON</h1>
+  <div class="box">
+    <div class="row">
+      <button id="btnConnect">Connect wallet</button>
+      <span id="status" class="muted">Not connected</span>
+    </div>
+  </div>
+
+  <div class="box">
+    <h2 style="margin:0 0 6px;font-size:18px">Sign & save</h2>
+    <label for="message">Message (max 240 chars)</label>
+    <textarea id="message" maxlength="240" placeholder="Short, optimistic and kind..."></textarea>
+    <div class="row" style="justify-content:space-between;margin-top:8px">
+      <span id="count" class="muted">0 / 240</span>
+      <div class="row">
+        <button id="btnSign" disabled>Sign</button>
+        <button id="btnSave" class="primary" disabled>Save to GitHub</button>
+      </div>
+    </div>
+    <div id="hint" class="muted" style="margin-top:6px"></div>
+  </div>
+
+  <div class="box">
+    <div class="row" style="justify-content:space-between">
+      <h2 style="margin:0;font-size:18px">Entries</h2>
+      <button id="btnReload">Reload</button>
+    </div>
+    <div id="list"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <script src="./save.js"></script>
+</body>
+</html>
