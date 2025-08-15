@@ -1,16 +1,16 @@
+
 <!doctype html>
-<html lang="en">
+<html lang="uk">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Wall of OP — Simple GitHub JSON</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Wall of OP — GitHub JSON (one-file)</title>
   <style>
     body{font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:760px;margin:24px auto;padding:0 16px;background:#fafafa;color:#111}
     h1{font-size:22px;margin:0 0 12px}
     .box{background:#fff;border:1px solid #e8e8e8;border-radius:10px;padding:14px;margin:12px 0}
     label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}
-    input,textarea{width:100%;padding:10px;border:1px solid #e1e1e1;border-radius:8px;font-size:14px}
-    textarea{min-height:100px;resize:vertical}
+    textarea{width:100%;min-height:100px;padding:10px;border:1px solid #e1e1e1;border-radius:8px;font-size:14px;resize:vertical}
     button{appearance:none;border:1px solid #ddd;background:#fff;border-radius:8px;padding:10px 14px;font-weight:700;cursor:pointer}
     button.primary{background:#ff0420;color:#fff;border-color:#ff0420}
     .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -20,10 +20,12 @@
   </style>
 </head>
 <body>
-  <h1>🧱 Wall of OP — Simple GitHub JSON</h1>
+  <h1>🧱 Wall of OP — GitHub JSON</h1>
+
   <div class="box">
     <div class="row">
       <button id="btnConnect">Connect wallet</button>
+      <button id="btnLogout">Log out token</button>
       <span id="status" class="muted">Not connected</span>
     </div>
   </div>
@@ -51,15 +53,100 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
- <input type="text" id="message" placeholder="Ваше повідомлення" style="width: 300px; padding: 5px;">
-<br><br>
+  <script>
+    // --- Repo settings ---
+    const OWNER="stephanschwab", REPO="Waal-of-OP", BRANCH="main", FILE_PATH="entries.json";
 
-<button id="btnConnect">🔗 Connect Wallet</button>
-<button id="btnSign">✍️ Sign Message</button>
-<button id="btnSave">💾 Save to GitHub</button>
-<br><br>
+    // --- Helpers ---
+    const $=id=>document.getElementById(id);
+    const shorten=a=>a?a.slice(0,6)+"…"+a.slice(-4):"";
+    function askToken(){const t=prompt("Встав GitHub fine-grained token (Contents: Read/Write) для stephanschwab/Waal-of-OP"); if(t) localStorage.setItem("gh_token",t.trim()); return t;}
+    function getToken(){return localStorage.getItem("gh_token")||askToken();}
+    function clearToken(){localStorage.removeItem("gh_token"); alert("Token cleared from this browser.");}
 
-<button onclick="location.reload()">🔄 Reload</button>
-  <script src="./save.js"></script>
+    // --- State ---
+    let provider=null, signer=null, user=null, signed=null;
+
+    // --- UI wiring ---
+    $("btnLogout").onclick=clearToken;
+
+    $("message").addEventListener("input",()=>{
+      $("count").textContent = $("message").value.length+" / 240";
+      $("btnSign").disabled = !(user && $("message").value.trim().length);
+    });
+
+    $("btnConnect").onclick=async()=>{
+      try{
+        if(!window.ethereum){ alert("Встановіть MetaMask"); return; }
+        await window.ethereum.request({method:"eth_requestAccounts"});
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+        signer = provider.getSigner(); user = await signer.getAddress();
+        $("status").textContent="Wallet: "+shorten(user);
+        $("btnSign").disabled = !$("message").value.trim().length;
+        $("hint").textContent="Ready to sign.";
+      }catch(e){ console.error(e); alert("Не вдалося підключити гаманець"); }
+    };
+
+    $("btnSign").onclick=async()=>{
+      const m=$("message").value.trim(); if(!m){ alert("Введи повідомлення"); return; }
+
+Євген Чебукін, [15.08.2025 18:13]
+const payload=["Wall of OP — Offchain","Address: "+user,"Time: "+new Date().toISOString(),"Message:",m].join("\\n");
+      try{
+        const sig = await window.ethereum.request({method:"personal_sign", params:[payload, user]});
+        signed={address:user,message:m,signature:sig,timestamp:new Date().toISOString()};
+        $("hint").textContent="Підписано. Готово до збереження.";
+        $("btnSave").disabled=false;
+      }catch(e){ console.error(e); $("hint").textContent="Підпис скасовано."; }
+    };
+
+    async function ghGet(){
+      const url=`https://api.github.com/repos/${OWNER}/${REPO}/contents/${FILE_PATH}?ref=${BRANCH}`;
+      const r=await fetch(url); if(r.status===404) return {entries:[],sha:null};
+      const j=await r.json(); const content=atob(j.content.replace(/\\n/g,""));
+      return {entries:JSON.parse(content||"[]"), sha:j.sha};
+    }
+    async function ghPut(entries, sha){
+      const body={message:"add entry",content:btoa(unescape(encodeURIComponent(JSON.stringify(entries,null,2)))),branch:BRANCH,sha};
+      const token=getToken();
+      const r=await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${FILE_PATH}`,{
+        method:"PUT",
+        headers:{Authorization:`token ${token}`,"Accept":"application/vnd.github+json"},
+        body:JSON.stringify(body)
+      });
+      if(!r.ok){ throw new Error("GitHub PUT failed: "+r.status+" "+await r.text()); }
+    }
+
+    $("btnSave").onclick=async()=>{
+      if(!signed){ alert("Спочатку підпиши повідомлення"); return; }
+      try{
+        $("hint").textContent="Зберігаю в GitHub…";
+        const cur=await ghGet(); cur.entries.push(signed);
+        await ghPut(cur.entries, cur.sha);
+        $("hint").textContent="Збережено ✅";
+        $("btnSave").disabled=true; $("message").value=""; $("count").textContent="0 / 240";
+        await reloadList();
+      }catch(e){ console.error(e); $("hint").textContent="Помилка: "+e.message; }
+    };
+
+    async function reloadList(){
+      try{
+        const cur=await ghGet();
+        const list=$("list"); list.innerHTML="";
+        cur.entries.slice().reverse().forEach(e=>{
+          const d=document.createElement("div"); d.className="item";
+          d.innerHTML=`<div class="row" style="justify-content:space-between">
+              <div class="row"><span class="mono">${e.address.slice(0,6)}…${e.address.slice(-4)}</span></div>
+              <div class="muted">${new Date(e.timestamp).toLocaleString()}</div>
+            </div>
+            <div style="margin-top:6px">${e.message.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\\n/g,"<br>")}</div>
+            <div class="muted" style="margin-top:6px">sig: ${e.signature.slice(0,18)}…</div>`;
+          list.appendChild(d);
+        });
+      }catch(e){ console.error(e); $("hint").textContent="Не вдалося завантажити entries.json"; }
+    }
+    $("btnReload").onclick=reloadList;
+    reloadList();
+  </script>
 </body>
 </html>
